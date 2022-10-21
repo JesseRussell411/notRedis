@@ -1,4 +1,3 @@
-import java.lang.invoke.WrongMethodTypeException
 import javax.sql.DataSource
 import scala.io.StdIn.readLine
 

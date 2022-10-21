@@ -10,6 +10,7 @@ class DataStore {
   type Store = String | mutable.Stack[String] | mutable.HashMap[String, String]
   /** Maps keys to values. The value can be a String (basic value), Stack (for Lpush, Lpop, and Lrange), or Hashmap (for hget and hset) */
   private val data = new mutable.HashMap[String, Store]
+  /** read-write lock for some basic thread safety. Would probably be better to lock on a per-key basis, especially if this is for caching. */
   private val lock = new ReentrantReadWriteLock()
 
   /**
@@ -80,8 +81,8 @@ class DataStore {
   def lpush(key: String, elements: String*): Unit = {
     lock.writeLock().lock()
     try {
-      data.getOrElseUpdate(key, new Stack[String]) match {
-        case stack: Stack[String] => stack.pushAll(elements)
+      data.getOrElseUpdate(key, new mutable.Stack[String]) match {
+        case stack: mutable.Stack[String] => stack.pushAll(elements)
         case _ => throw new WrongTypeException
       }
     } finally {
@@ -207,7 +208,7 @@ class DataStore {
     try {
       data.get(key) match {
         case Some(store) => store match {
-          case map: HashMap[String, String] => map.get(field)
+          case map: mutable.HashMap[String, String] => map.get(field)
           case _ => throw new WrongTypeException
         }
         case None => None

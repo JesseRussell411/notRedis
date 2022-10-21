@@ -24,15 +24,19 @@ object Utils {
    * @return The string split into arguments.
    */
   def splitArgs(input: String): Array[String] = {
+    /** Whether the iterator is inside a set of quotes. */
     var inQuotes = false
+    /** Whether the iterator is on a character immediately following an escape character. */
     var escaped = false
+
     val output = new ListBuffer[StringBuilder]
     output.addOne(new StringBuilder)
 
-    var iterator = input.iterator
+    val iterator = input.iterator
 
     while (iterator.hasNext) {
       val char = iterator.next()
+
       if (escaped) {
         output.last.append(char)
         escaped = false
@@ -41,8 +45,9 @@ object Utils {
           case '\\' => escaped = true
           case '"' => inQuotes = !inQuotes
           case _ =>
-            if (char.isWhitespace && !inQuotes && output.last.nonEmpty) {
-              output.addOne(new StringBuilder)
+            if (char.isWhitespace && !inQuotes) {
+              if (output.last.nonEmpty)
+                output.addOne(new StringBuilder)
             } else {
               output.last.append(char)
             }
@@ -50,6 +55,6 @@ object Utils {
       }
     }
 
-    output.map(s => s.toString()).toArray
+    output.map(s => s.toString()).filter(s => s.nonEmpty).toArray
   }
 }
