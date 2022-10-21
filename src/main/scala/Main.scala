@@ -11,7 +11,7 @@ object Main extends App {
 
   while (true) {
     // get command from user
-    val command = readLine()
+    val command = readLine("> ")
 
     // break command into arguments
     val args = Utils.splitArgs(command)
