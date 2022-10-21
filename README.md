@@ -1,5 +1,7 @@
 # notRedis
-I have completed the challenge completely as far as I know. I implemented SET, GET, LPUSH, LPOP, LRANGE, HSET, and HGET
+I decided to challenge myself and write this in scala, which I've never used before. I used scala 3 but the only scala 3 feature I used was union types as far as I know.
+
+I implemented SET, GET, LPUSH, LPOP, LRANGE, HSET, and HGET
 
 Things to note:
 
