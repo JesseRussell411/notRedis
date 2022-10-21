@@ -1,3 +1,4 @@
+import java.lang.invoke.WrongMethodTypeException
 import scala.collection.mutable
 import scala.collection.mutable.{HashMap, ListBuffer, Stack}
 
@@ -35,7 +36,15 @@ class DataStore {
     }
   }
 
-  def lpush(key: String, elements: Iterable[String]): Unit = {
+  def del(keys: String*): Int = {
+    var deleteCount = 0
+    for (key <- keys) {
+      if (data.remove(key).nonEmpty) deleteCount += 1
+    }
+    deleteCount
+  }
+
+  def lpush(key: String, elements: String*): Unit = {
     data.getOrElseUpdate(key, new Stack[String]) match {
       case stack: Stack[String] => stack.pushAll(elements)
       case _ => throw new WrongTypeException
@@ -82,4 +91,20 @@ class DataStore {
     }
   }
 
+  def hset(key: String, field: String, value: String): Option[String] = {
+    data.getOrElseUpdate(key, new mutable.HashMap[String, String]()) match {
+      case map: mutable.HashMap[String, String] => map.put(field, value)
+      case _ => throw new WrongMethodTypeException
+    }
+  }
+
+  def hget(key: String, field: String): Option[String] = {
+    data.get(key) match {
+      case Some(store) => store match {
+        case map: HashMap[String, String] => map.get(field)
+        case _ => throw new WrongMethodTypeException
+      }
+      case None => None
+    }
+  }
 }
