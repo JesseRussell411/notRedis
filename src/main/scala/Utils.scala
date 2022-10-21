@@ -1,3 +1,5 @@
+import scala.collection.mutable.ListBuffer
+
 object Utils {
   /**
    * Converts a negative index that represents an index from the end of a collection its associated positive index.
@@ -10,5 +12,44 @@ object Utils {
     if (index < 0)
       length + index
     else index
+  }
+
+  /**
+   * Splits the arguments given in the whitespace eliminated string into a list of argument.
+   * Wrap the argument in double quotes to include whitespace and use the escape character to include double quotes or a specific whitespace character.
+   *
+   * example: arg1 arg\ 2 "arg 3" argWithQuote\"InIt = arg1, arg 2, arg 3, argWithQuote"InIt
+   *
+   * @param input The string to split.
+   * @return The string split into arguments.
+   */
+  def splitArgs(input: String): Array[String] = {
+    var inQuotes = false
+    var escaped = false
+    val output = new ListBuffer[StringBuilder]
+    output.addOne(new StringBuilder)
+
+    var iterator = input.iterator
+
+    while (iterator.hasNext) {
+      val char = iterator.next()
+      if (escaped) {
+        output.last.append(char)
+        escaped = false
+      } else {
+        char match {
+          case '\\' => escaped = true
+          case '"' => inQuotes = !inQuotes
+          case _ =>
+            if (char.isWhitespace && !inQuotes && output.last.nonEmpty) {
+              output.addOne(new StringBuilder)
+            } else {
+              output.last.append(char)
+            }
+        }
+      }
+    }
+
+    output.map(s => s.toString()).toArray
   }
 }
