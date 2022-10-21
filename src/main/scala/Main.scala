@@ -41,8 +41,8 @@ object Main extends App {
           // push onto a stack store
           case "lpush" =>
             if (args.length < 3) throw new WrongNumberOfArgumentsException
-
-            data.lpush(args(1), args.slice(2, args.length): _*)
+            val slice = args.slice(2, args.length)
+            data.lpush(args(1), slice: _*)
             (args.length - 2).toString
           // pop from a stack value
           case "lpop" =>
@@ -71,11 +71,14 @@ object Main extends App {
             if (args.length < 4 || args.length % 2 != 0) throw new WrongNumberOfArgumentsException
 
             val key = args(1)
+            var newEntryCount = 0
             for (i <- 2 until args.length by 2) {
-              data.hset(key, args(i), args(i + 1))
+              val outp = data.hset(key, args(i), args(i + 1))
+
+              if (outp.isEmpty) newEntryCount += 1
             }
 
-            args.length.-(2)./(2).toString
+            newEntryCount.toString
           // get a value from a key in a map store
           case "hget" =>
             if (args.length != 3) throw new WrongNumberOfArgumentsException
@@ -86,8 +89,8 @@ object Main extends App {
           case _ => s"Unknown Command '${args(0)}' with args: ${args.slice(1, args.length).map(a => s"'$a'").mkString(" ")}"
         }
       } catch {
-        case e: WrongTypeException => "Operation against a key holding the wrong kind of value"
-        case e: WrongNumberOfArgumentsException => s"Wrong number of arguments for command ${args(0)}"
+        case e: WrongTypeException => "ERROR: Operation against a key holding the wrong kind of value"
+        case e: WrongNumberOfArgumentsException => s"ERROR: Wrong number of arguments for command ${args(0)}"
       }
 
       // print the result.

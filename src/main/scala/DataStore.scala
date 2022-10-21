@@ -1,3 +1,4 @@
+import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import scala.collection.mutable
 import scala.collection.mutable.{HashMap, ListBuffer, Stack}
 
@@ -8,7 +9,8 @@ class DataStore {
   /** Can be either a value (string), stack, or map */
   type Store = String | mutable.Stack[String] | mutable.HashMap[String, String]
   /** Maps keys to values. The value can be a String (basic value), Stack (for Lpush, Lpop, and Lrange), or Hashmap (for hget and hset) */
-  val data = new mutable.HashMap[String, Store]
+  private val data = new mutable.HashMap[String, Store]
+  private val lock = new ReentrantReadWriteLock()
 
   /**
    * Stores the value at the key.
@@ -19,7 +21,12 @@ class DataStore {
    * @return
    */
   def set(key: String, value: String): Option[Store] = {
-    data.put(key, value)
+    lock.writeLock().lock()
+    try {
+      data.put(key, value)
+    } finally {
+      lock.writeLock().unlock()
+    }
   }
 
   /**
@@ -30,12 +37,17 @@ class DataStore {
    * @throws WrongTypeException If The store is not a basic value (string) but is instead a stack, map, or other non-basic store.
    */
   def get(key: String): Option[String] = {
-    data.get(key) match {
-      case Some(store) => store match {
-        case basic: String => Some(basic)
-        case _ => throw new WrongTypeException
+    lock.readLock().lock()
+    try {
+      data.get(key) match {
+        case Some(store) => store match {
+          case basic: String => Some(basic)
+          case _ => throw new WrongTypeException
+        }
+        case None => None
       }
-      case None => None
+    } finally {
+      lock.readLock().unlock()
     }
   }
 
@@ -46,11 +58,16 @@ class DataStore {
    * @return The number of keys that where found and deleted. Keys that don't exists don't count.
    */
   def del(keys: String*): Int = {
-    var deleteCount = 0
-    for (key <- keys) {
-      if (data.remove(key).nonEmpty) deleteCount += 1
+    lock.writeLock().lock()
+    try {
+      var deleteCount = 0
+      for (key <- keys) {
+        if (data.remove(key).nonEmpty) deleteCount += 1
+      }
+      deleteCount
+    } finally {
+      lock.writeLock().unlock()
     }
-    deleteCount
   }
 
   /**
@@ -61,9 +78,14 @@ class DataStore {
    * @throws WrongTypeException If the store at the key is not a stack.
    */
   def lpush(key: String, elements: String*): Unit = {
-    data.getOrElseUpdate(key, new Stack[String]) match {
-      case stack: Stack[String] => stack.pushAll(elements)
-      case _ => throw new WrongTypeException
+    lock.writeLock().lock()
+    try {
+      data.getOrElseUpdate(key, new Stack[String]) match {
+        case stack: Stack[String] => stack.pushAll(elements)
+        case _ => throw new WrongTypeException
+      }
+    } finally {
+      lock.writeLock().unlock()
     }
   }
 
@@ -75,13 +97,18 @@ class DataStore {
    * @throws WrongTypeException If the store at the key isn't a stack.
    */
   def lpop(key: String): Option[String] = {
-    data.get(key) match {
-      case Some(store) =>
-        store match {
-          case stack: mutable.Stack[String] => if (stack.nonEmpty) Some(stack.pop()) else None
-          case _ => throw new WrongTypeException
-        }
-      case None => None
+    lock.writeLock().lock()
+    try {
+      data.get(key) match {
+        case Some(store) =>
+          store match {
+            case stack: mutable.Stack[String] => if (stack.nonEmpty) Some(stack.pop()) else None
+            case _ => throw new WrongTypeException
+          }
+        case None => None
+      }
+    } finally {
+      lock.writeLock().unlock()
     }
   }
 
@@ -94,25 +121,30 @@ class DataStore {
    * @throws WrongTypeException If the store at the key wasn't a stack.
    */
   def lpop(key: String, count: Int): Option[List[String]] = {
-    data.get(key) match {
-      case Some(store) =>
-        store match {
-          case stack: mutable.Stack[String] =>
+    lock.writeLock().lock()
+    try {
+      data.get(key) match {
+        case Some(store) =>
+          store match {
+            case stack: mutable.Stack[String] =>
 
-            /** List to collect the values popped from the stack. */
-            val result = new ListBuffer[String]
+              /** List to collect the values popped from the stack. */
+              val result = new ListBuffer[String]
 
-            /** How many values have been popped from the stack. */
-            var popCount = 0
-            while (popCount < count && stack.nonEmpty) {
-              result.addOne(stack.pop())
-              popCount += 1
-            }
+              /** How many values have been popped from the stack. */
+              var popCount = 0
+              while (popCount < count && stack.nonEmpty) {
+                result.addOne(stack.pop())
+                popCount += 1
+              }
 
-            if (result.isEmpty) None else Some(result.toList)
-          case _ => throw new WrongTypeException
-        }
-      case None => None
+              if (result.isEmpty) None else Some(result.toList)
+            case _ => throw new WrongTypeException
+          }
+        case None => None
+      }
+    } finally {
+      lock.writeLock().unlock()
     }
   }
 
@@ -126,14 +158,19 @@ class DataStore {
    * @throws WrongTypeException If the store at the key wasn't a stack.
    */
   def lrange(key: String, start: Int, stop: Int): Option[Iterable[String]] = {
-    data.get(key) match {
-      case Some(store) => store match {
-        case stack: mutable.Stack[String] => Some(stack.slice(
-          Utils.unInvertIndex(start, stack.size),
-          Utils.unInvertIndex(stop, stack.size) + 1).toList)
-        case _ => throw new WrongTypeException
+    lock.readLock().lock()
+    try {
+      data.get(key) match {
+        case Some(store) => store match {
+          case stack: mutable.Stack[String] => Some(stack.slice(
+            Utils.unInvertIndex(start, stack.size),
+            Utils.unInvertIndex(stop, stack.size) + 1).toList)
+          case _ => throw new WrongTypeException
+        }
+        case None => None
       }
-      case None => None
+    } finally {
+      lock.readLock().unlock()
     }
   }
 
@@ -143,12 +180,17 @@ class DataStore {
    * @param key   The key at which the map is stored.
    * @param field The field at which to store the value in the map.
    * @param value The value to store in the map.
-   * @return Option containing the previous value was stored at the field in the map or None if either the field wasn't already defined in the map or if no map was found at the given key.
+   * @return Option containing the previous value stored at the field in the map or None if either the field wasn't already defined in the map or if no map was found at the given key.
    */
   def hset(key: String, field: String, value: String): Option[String] = {
-    data.getOrElseUpdate(key, new mutable.HashMap[String, String]()) match {
-      case map: mutable.HashMap[String, String] => map.put(field, value)
-      case _ => throw new WrongTypeException
+    lock.readLock().lock()
+    try {
+      data.getOrElseUpdate(key, new mutable.HashMap[String, String]()) match {
+        case map: mutable.HashMap[String, String] => map.put(field, value)
+        case _ => throw new WrongTypeException
+      }
+    } finally {
+      lock.readLock().unlock()
     }
   }
 
@@ -161,12 +203,17 @@ class DataStore {
    * @throws WrongTypeException If the store at the key isn't a map.
    */
   def hget(key: String, field: String): Option[String] = {
-    data.get(key) match {
-      case Some(store) => store match {
-        case map: HashMap[String, String] => map.get(field)
-        case _ => throw new WrongTypeException
+    lock.readLock().lock()
+    try {
+      data.get(key) match {
+        case Some(store) => store match {
+          case map: HashMap[String, String] => map.get(field)
+          case _ => throw new WrongTypeException
+        }
+        case None => None
       }
-      case None => None
+    } finally {
+      lock.readLock().unlock()
     }
   }
 }
