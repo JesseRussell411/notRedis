@@ -1,5 +1,5 @@
 # notRedis
-I decided to challenge myself and write this in scala, which I have never used before. From the small taste I've had, I think I like it.
+I decided to challenge myself and write this in scala, which I have never used before.
 
 
 I have completed the challenge completely as far as I know. I implemented SET, GET, LPUSH, LPOP, LRANGE, HSET, and HGET
