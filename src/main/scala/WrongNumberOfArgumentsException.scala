@@ -1,0 +1,1 @@
+class WrongNumberOfArgumentsException() extends Exception

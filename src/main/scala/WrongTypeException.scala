@@ -1,0 +1,3 @@
+class WrongTypeException() extends Exception{
+
+}
